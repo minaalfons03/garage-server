@@ -1,88 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
-  <title>Garage Gate</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
-  <style>
-    :root{
-      --bg:#060a10;--panel:#0c1220;--border:#1a2d4a;
-      --accent:#00e5ff;--green:#00ff88;--danger:#ff3860;
-      --warn:#ffbb00;--text:#c8ddf0;--dim:#4a6278;
-      --glow:0 0 18px rgba(0,229,255,.35);
-      --glow2:0 0 18px rgba(0,255,136,.35);
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Share Tech Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;gap:12px}
-    body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,229,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.04) 1px,transparent 1px);background-size:40px 40px}
-    .wrapper{position:relative;z-index:1;width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px}
-    /* Header */
-    .header{display:flex;align-items:center;justify-content:space-between}
-    .logo{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:900;letter-spacing:.12em;color:var(--accent);text-shadow:var(--glow)}
-    .logo span{color:var(--green)}
-    .badges{display:flex;gap:6px}
-    .badge{font-size:.62rem;padding:3px 9px;border-radius:10px;border:1px solid var(--border);color:var(--dim)}
-    .badge.on{color:var(--green);border-color:var(--green)}
-    .badge.off{color:var(--danger);border-color:var(--danger)}
-    /* URL input */
-    .url-row{display:flex;gap:8px}
-    .url-input{font-family:'Share Tech Mono',monospace;font-size:.72rem;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);flex:1;outline:none}
-    .url-input:focus{border-color:var(--accent)}
-    /* Camera */
-    .cam-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:14px;overflow:hidden;border:2px solid var(--border);transition:border-color .3s,box-shadow .3s}
-    .cam-wrap.granted{border-color:var(--green);box-shadow:var(--glow2)}
-    .cam-wrap.denied{border-color:var(--danger);box-shadow:0 0 18px rgba(255,56,96,.4)}
-    .cam-wrap.scanning{border-color:var(--accent)}
-    #video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
-    #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-    #snap{display:none}
-    .scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanAnim 2.5s linear infinite;opacity:0;pointer-events:none}
-    .cam-wrap.scanning .scan-line,.cam-wrap.granted .scan-line{opacity:1}
-    @keyframes scanAnim{0%{top:0}100%{top:100%}}
-    .result-banner{position:absolute;bottom:0;left:0;right:0;padding:14px;text-align:center;font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:.08em;opacity:0;transition:opacity .3s;pointer-events:none}
-    .result-banner.show{opacity:1}
-    .result-banner.granted{background:rgba(0,255,136,.25);color:var(--green)}
-    .result-banner.denied{background:rgba(255,56,96,.2);color:var(--danger)}
-    .scan-tag{position:absolute;top:10px;right:12px;font-size:.62rem;color:var(--accent);display:none}
-    .scan-tag.active{display:block;animation:blink 1s step-end infinite}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-    /* Door status */
-    .door-card{display:flex;align-items:center;justify-content:center;gap:14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;transition:border-color .3s}
-    .door-card.open{border-color:var(--green)}
-    .door-icon{font-size:2.2rem;line-height:1}
-    .door-info{}
-    .door-label{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;color:var(--dim)}
-    .door-label.open{color:var(--green);text-shadow:var(--glow2)}
-    .door-sub{font-size:.68rem;color:var(--dim);margin-top:3px}
-    /* Visitor */
-    .visitor-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
-    .card-title{font-size:.62rem;letter-spacing:.15em;color:var(--dim);margin-bottom:6px;font-family:'Orbitron',sans-serif}
-    .visitor-name{font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;color:var(--accent)}
-    .visitor-name.known{color:var(--green);text-shadow:var(--glow2)}
-    .visitor-time{font-size:.68rem;color:var(--dim);margin-top:4px}
-    /* Buttons */
-    .btn-row{display:flex;gap:10px}
-    .btn{font-family:'Orbitron',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.1em;padding:12px 0;border-radius:8px;border:1px solid;cursor:pointer;background:transparent;flex:1;transition:all .2s}
-    .btn:active{transform:scale(.97)}
-    .btn-cam{color:var(--accent);border-color:var(--accent)}
-    .btn-cam:hover{box-shadow:var(--glow)}
-    /* Log */
-    .log-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
-    .log-list{list-style:none;font-size:.7rem;color:var(--dim);max-height:100px;overflow-y:auto;margin-top:6px}
-    .log-list li{padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
-    .log-list li span{color:var(--accent)}
-    .log-list li.ok span{color:var(--green)}
-    .log-list li.err span{color:var(--danger)}
-    .log-list li.warn span{color:var(--warn)}
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>Garage Gate</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#060a10;--panel:#0c1220;--border:#1a2d4a;
+  --accent:#00e5ff;--green:#00ff88;--danger:#ff3860;--warn:#ffbb00;
+  --text:#c8ddf0;--dim:#4a6278;
+  --glow:0 0 18px rgba(0,229,255,.35);--glow2:0 0 18px rgba(0,255,136,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Share Tech Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px;gap:12px}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,229,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.04) 1px,transparent 1px);background-size:40px 40px}
+.wrapper{position:relative;z-index:1;width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px}
+.header{display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:900;letter-spacing:.12em;color:var(--accent);text-shadow:var(--glow)}
+.logo span{color:var(--green)}
+.badges{display:flex;gap:6px}
+.badge{font-size:.62rem;padding:3px 9px;border-radius:10px;border:1px solid var(--border);color:var(--dim)}
+.badge.on{color:var(--green);border-color:var(--green)}
+.badge.off{color:var(--danger);border-color:var(--danger)}
+.url-row{display:flex;gap:8px}
+.url-input{font-family:'Share Tech Mono',monospace;font-size:.72rem;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);flex:1;outline:none}
+.url-input:focus{border-color:var(--accent)}
+.cam-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:14px;overflow:hidden;border:2px solid var(--border);transition:border-color .3s,box-shadow .3s}
+.cam-wrap.granted{border-color:var(--green);box-shadow:var(--glow2)}
+.cam-wrap.denied{border-color:var(--danger);box-shadow:0 0 18px rgba(255,56,96,.4)}
+.cam-wrap.scanning{border-color:var(--accent)}
+#video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
+#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#snap{display:none}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanAnim 2.5s linear infinite;opacity:0;pointer-events:none}
+.cam-wrap.scanning .scan-line,.cam-wrap.granted .scan-line{opacity:1}
+@keyframes scanAnim{0%{top:0}100%{top:100%}}
+.result-banner{position:absolute;bottom:0;left:0;right:0;padding:14px;text-align:center;font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:.08em;opacity:0;transition:opacity .3s;pointer-events:none}
+.result-banner.show{opacity:1}
+.result-banner.granted{background:rgba(0,255,136,.25);color:var(--green)}
+.result-banner.denied{background:rgba(255,56,96,.2);color:var(--danger)}
+.scan-tag{position:absolute;top:10px;right:12px;font-size:.62rem;color:var(--accent);display:none}
+.scan-tag.active{display:block;animation:blink 1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.door-card{display:flex;align-items:center;justify-content:center;gap:14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;transition:border-color .3s}
+.door-card.open{border-color:var(--green)}
+.door-icon{font-size:2.2rem;line-height:1}
+.door-label{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;color:var(--dim)}
+.door-label.open{color:var(--green);text-shadow:var(--glow2)}
+.door-sub{font-size:.68rem;color:var(--dim);margin-top:3px}
+.visitor-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+.card-title{font-size:.62rem;letter-spacing:.15em;color:var(--dim);margin-bottom:6px;font-family:'Orbitron',sans-serif}
+.visitor-name{font-family:'Orbitron',sans-serif;font-size:1.5rem;font-weight:700;color:var(--accent)}
+.visitor-name.known{color:var(--green);text-shadow:var(--glow2)}
+.visitor-time{font-size:.68rem;color:var(--dim);margin-top:4px}
+.btn-row{display:flex;gap:10px}
+.btn{font-family:'Orbitron',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.1em;padding:12px 0;border-radius:8px;border:1px solid;cursor:pointer;background:transparent;flex:1;transition:all .2s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-cam{color:var(--accent);border-color:var(--accent)}
+.btn-cam:hover:not(:disabled){box-shadow:var(--glow)}
+.btn-open{color:var(--green);border-color:var(--green)}
+.btn-open:hover:not(:disabled){box-shadow:var(--glow2)}
+.btn-close{color:var(--danger);border-color:var(--danger)}
+.btn-close:hover:not(:disabled){box-shadow:0 0 18px rgba(255,56,96,.4)}
+.gate-row{display:none;gap:10px}
+.gate-row.show{display:flex}
+.register-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+.setup{background:rgba(0,229,255,.04);border:1px dashed rgba(0,229,255,.2);border-radius:10px;padding:14px;margin-top:6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.row:last-child{margin-bottom:0}
+.row label{font-size:.7rem;color:var(--dim);min-width:50px}
+.inp{font-family:'Share Tech Mono',monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);flex:1;min-width:100px;outline:none}
+.inp:focus{border-color:var(--accent)}
+.file-wrap{position:relative;flex:1;min-width:120px}
+.file-wrap input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.file-btn{font-family:'Share Tech Mono',monospace;font-size:.7rem;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-reg{font-family:'Orbitron',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.08em;padding:8px 14px;border-radius:8px;border:1px solid var(--green);color:var(--green);cursor:pointer;background:transparent}
+.btn-reg:hover{background:rgba(0,255,136,.1);box-shadow:var(--glow2)}
+.faces-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.face-tag{font-size:.7rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);color:var(--green);display:flex;align-items:center;gap:6px}
+.face-tag button{background:none;border:none;color:var(--danger);cursor:pointer;font-size:.8rem;padding:0;line-height:1}
+.log-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
+.log-list{list-style:none;font-size:.7rem;color:var(--dim);max-height:120px;overflow-y:auto;margin-top:6px}
+.log-list li{padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.log-list li span{color:var(--accent)}
+.log-list li.ok span{color:var(--green)}
+.log-list li.err span{color:var(--danger)}
+.log-list li.warn span{color:var(--warn)}
+</style>
 </head>
 <body>
 <div class="wrapper">
 
-  <!-- Header -->
   <div class="header">
     <div class="logo">🚗 GARAGE <span>GATE</span></div>
     <div class="badges">
@@ -91,12 +103,10 @@
     </div>
   </div>
 
-  <!-- Server URL -->
   <div class="url-row">
     <input class="url-input" id="server-url" placeholder="https://your-app.railway.app" oninput="onUrlInput()"/>
   </div>
 
-  <!-- Camera -->
   <div class="cam-wrap" id="cam-wrap">
     <video id="video" autoplay muted playsinline></video>
     <canvas id="overlay"></canvas>
@@ -106,7 +116,6 @@
     <div class="scan-tag" id="scan-tag">⬤ SCANNING</div>
   </div>
 
-  <!-- Door status -->
   <div class="door-card" id="door-card">
     <div class="door-icon" id="door-icon">🔒</div>
     <div class="door-info">
@@ -115,19 +124,42 @@
     </div>
   </div>
 
-  <!-- Current visitor -->
   <div class="visitor-card">
     <div class="card-title">// CURRENT VISITOR</div>
     <div class="visitor-name" id="visitor-name">NONE</div>
     <div class="visitor-time" id="visitor-time"></div>
   </div>
 
-  <!-- Button -->
   <div class="btn-row">
     <button class="btn btn-cam" id="btn-cam" onclick="toggleCamera()">▶ START CAMERA</button>
   </div>
 
-  <!-- Log -->
+  <!-- Gate control: OPEN only enabled after a known face is detected. CLOSE only shown while door is open -->
+  <div class="btn-row gate-row" id="gate-row">
+    <button class="btn btn-open" id="btn-open" onclick="openGate()" disabled>🔓 OPEN GATE</button>
+    <button class="btn btn-close" id="btn-close" onclick="closeGate()" style="display:none">🔒 CLOSE GATE</button>
+  </div>
+
+  <div class="register-card">
+    <div class="card-title">// REGISTER AUTHORIZED USERS</div>
+    <div class="setup">
+      <div class="row">
+        <label>Name</label>
+        <input class="inp" id="face-name" type="text" placeholder="e.g. Mina"/>
+      </div>
+      <div class="row">
+        <div class="file-wrap">
+          <div class="file-btn" id="file-label">Choose image…</div>
+          <input type="file" id="face-photo" accept="image/*" onchange="onPhoto(this)"/>
+        </div>
+        <button class="btn-reg" onclick="registerFace()">+ REGISTER</button>
+      </div>
+      <div class="faces-list" id="faces-list">
+        <span style="font-size:.72rem;color:var(--dim)">No users registered yet.</span>
+      </div>
+    </div>
+  </div>
+
   <div class="log-card">
     <div class="card-title">// ACCESS LOG</div>
     <ul class="log-list" id="log-list"><li>System ready…</li></ul>
@@ -157,9 +189,9 @@ fireDb.ref('/garage/door_status').on('value', snap => {
 
 fireDb.ref('/garage/current_visitor').on('value', snap => {
   const name = snap.val();
-  const empty = !name || name === 'Unknown' || name.toLowerCase() === 'none';
+  const empty = !name || name === 'Unknown' || String(name).toLowerCase() === 'none';
   const el = document.getElementById('visitor-name');
-  el.textContent = empty ? 'NONE' : name.toUpperCase();
+  el.textContent = empty ? 'NONE' : String(name).toUpperCase();
   el.className = empty ? 'visitor-name' : 'visitor-name known';
   document.getElementById('visitor-time').textContent =
     !empty ? 'Last seen: ' + new Date().toLocaleTimeString() : '';
@@ -171,14 +203,20 @@ function updateDoor(status){
   const icon  = document.getElementById('door-icon');
   const label = document.getElementById('door-label');
   const sub   = document.getElementById('door-sub');
+  const btnOpen  = document.getElementById('btn-open');
+  const btnClose = document.getElementById('btn-close');
+
   if(status === 'open'){
     icon.textContent  = '🔓';
     label.textContent = 'DOOR OPEN';
     label.className   = 'door-label open';
-    sub.textContent   = 'Closing in 5 seconds…';
+    sub.textContent   = 'Tap CLOSE GATE when ready';
     card.className    = 'door-card open';
     wrap.classList.add('granted');
     wrap.classList.remove('denied');
+    // While open: only the close button is usable, no face scan needed to close
+    btnOpen.style.display  = 'none';
+    btnClose.style.display = '';
   } else {
     icon.textContent  = '🔒';
     label.textContent = 'DOOR CLOSED';
@@ -187,6 +225,10 @@ function updateDoor(status){
     card.className    = 'door-card';
     wrap.classList.remove('granted','denied');
     if(stream) wrap.classList.add('scanning');
+    // While closed: must detect a known face before OPEN is enabled
+    btnOpen.style.display  = '';
+    btnClose.style.display = 'none';
+    resetOpenAvailability();
   }
 }
 
@@ -210,6 +252,7 @@ async function pingServer(){
     const el = document.getElementById('api-badge');
     el.textContent = 'API'; el.className = 'badge on';
     log(`API online · ${d.registered_faces?.length ?? 0} face(s)`,'ok');
+    renderFaces(d.registered_faces || []);
   } catch {
     const el = document.getElementById('api-badge');
     el.textContent = 'API'; el.className = 'badge off';
@@ -220,6 +263,9 @@ async function pingServer(){
 // ── Camera ────────────────────────────────────────────────────────────
 let stream = null, scanTimer = null, scanning = false;
 const SCAN_MS = 1500;
+const OPEN_WINDOW_MS = 8000; // how long the OPEN button stays enabled after a successful match
+let openExpireTimer = null;
+let lastMatchedName = null;
 
 async function toggleCamera(){
   if(stream){ stopCamera(); return; }
@@ -231,6 +277,7 @@ async function toggleCamera(){
     v.srcObject = stream; await v.play();
     document.getElementById('cam-wrap').classList.add('scanning');
     document.getElementById('btn-cam').textContent = '■ STOP CAMERA';
+    document.getElementById('gate-row').classList.add('show');
     log('Camera started','ok');
     scanTimer = setInterval(sendSnap, SCAN_MS);
   } catch(e){ log('✗ Camera: '+e.message,'err'); }
@@ -243,7 +290,9 @@ function stopCamera(){
   document.getElementById('cam-wrap').className = 'cam-wrap';
   document.getElementById('btn-cam').textContent = '▶ START CAMERA';
   document.getElementById('scan-tag').classList.remove('active');
+  document.getElementById('gate-row').classList.remove('show');
   clearOverlay(); clearBanner();
+  resetOpenAvailability();
   log('Camera stopped');
 }
 
@@ -267,14 +316,15 @@ async function sendSnap(){
     if(d.error){ log('✗ '+d.error,'err'); return; }
 
     if(d.name && d.name !== 'Unknown'){
-      showBanner('✓ '+d.name.toUpperCase()+' — ACCESS GRANTED','granted');
+      showBanner('✓ '+d.name.toUpperCase()+' — FACE DETECTED','granted');
       drawBox(v, true, d.name);
-      log('✓ '+d.name+' — GRANTED ('+Math.round(d.confidence*100)+'%)','ok');
+      log('✓ '+d.name+' — DETECTED ('+Math.round(d.confidence*100)+'%)','ok');
+      enableOpenButton(d.name);
     } else if(d.faces_found > 0){
-      showBanner('✗ UNKNOWN — ACCESS DENIED','denied');
+      showBanner('✗ UNKNOWN — NOT DETECTED','denied');
       drawBox(v, false, 'Unknown');
       document.getElementById('cam-wrap').classList.add('denied');
-      log('✗ Unknown person — DENIED','err');
+      log('✗ Unknown person — gate stays closed','err');
     } else {
       clearBanner(); clearOverlay();
       document.getElementById('cam-wrap').classList.remove('denied','granted');
@@ -322,6 +372,77 @@ function log(msg,type){
   const ul=document.getElementById('log-list'); ul.prepend(li);
   if(ul.children.length>30) ul.lastChild.remove();
 }
+
+// ── Gate control ──────────────────────────────────────────────────────
+function enableOpenButton(name){
+  lastMatchedName = name;
+  const btn = document.getElementById('btn-open');
+  btn.disabled = false;
+  btn.textContent = '🔓 OPEN GATE FOR ' + name.toUpperCase();
+  clearTimeout(openExpireTimer);
+  openExpireTimer = setTimeout(resetOpenAvailability, OPEN_WINDOW_MS);
+}
+function resetOpenAvailability(){
+  lastMatchedName = null;
+  clearTimeout(openExpireTimer);
+  const btn = document.getElementById('btn-open');
+  btn.disabled = true;
+  btn.textContent = '🔓 OPEN GATE';
+}
+function openGate(){
+  if(!lastMatchedName) return; // safety: cannot open without a recent match
+  fireDb.ref('/garage/door_status').set('open');
+  log('Gate opened for '+lastMatchedName,'ok');
+  resetOpenAvailability();
+}
+function closeGate(){
+  fireDb.ref('/garage/door_status').set('closed');
+  log('Gate closed manually','warn');
+}
+
+// ── Register face ─────────────────────────────────────────────────────
+function onPhoto(i){ document.getElementById('file-label').textContent = i.files[0]?.name || 'Choose image…'; }
+
+async function registerFace(){
+  const name  = document.getElementById('face-name').value.trim();
+  const input = document.getElementById('face-photo');
+  const url   = getUrl();
+  if(!name) return alert('Enter a name.');
+  if(!input.files[0]) return alert('Choose a photo.');
+  if(!url) return alert('Enter the Railway server URL.');
+  try{
+    const b64 = await toB64(input.files[0]);
+    const r = await fetch(url+'/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, image: b64})
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    log('✓ "'+name+'" registered','ok');
+    document.getElementById('face-name').value = '';
+    input.value = ''; document.getElementById('file-label').textContent = 'Choose image…';
+    pingServer();
+  } catch(e){ alert('✗ '+e.message); log('✗ register: '+e.message,'err'); }
+}
+
+async function deleteFace(name){
+  if(!confirm(`Remove "${name}"?`)) return;
+  try{
+    await fetch(getUrl()+'/faces/'+encodeURIComponent(name), {method:'DELETE'});
+    pingServer();
+  } catch(e){ alert('✗ '+e.message); }
+}
+
+function renderFaces(faces){
+  const el = document.getElementById('faces-list');
+  if(!faces.length){ el.innerHTML='<span style="font-size:.72rem;color:var(--dim)">No users registered yet.</span>'; return; }
+  el.innerHTML = faces.map(f=>`
+    <div class="face-tag">👤 ${f}
+      <button onclick="deleteFace('${f}')">✕</button>
+    </div>`).join('');
+}
+
+function toB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('Read failed')); r.readAsDataURL(file); }); }
 
 // ── Init ──────────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
