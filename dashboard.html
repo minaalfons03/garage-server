@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Garage Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    :root{--bg:#060a10;--panel:#0c1220;--border:#1a2d4a;--accent:#00e5ff;--green:#00ff88;--danger:#ff3860;--warn:#ffbb00;--text:#c8ddf0;--dim:#4a6278;--glow:0 0 18px rgba(0,229,255,.35);--glow2:0 0 18px rgba(0,255,136,.35)}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Share Tech Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px 60px}
+    body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,229,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.04) 1px,transparent 1px);background-size:40px 40px}
+    .wrapper{position:relative;z-index:1;max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+    /* Header */
+    header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:16px;flex-wrap:wrap;gap:10px}
+    .logo{font-family:'Orbitron',sans-serif;font-size:1.2rem;font-weight:900;letter-spacing:.12em;color:var(--accent);text-shadow:var(--glow)}
+    .logo span{color:var(--green)}
+    .header-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .url-input{font-family:'Share Tech Mono',monospace;font-size:.72rem;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);width:240px;outline:none}
+    .url-input:focus{border-color:var(--accent)}
+    .badge{font-size:.68rem;padding:4px 10px;border-radius:12px;border:1px solid var(--border);color:var(--dim)}
+    .badge.on{color:var(--green);border-color:var(--green)}
+    .badge.off{color:var(--danger);border-color:var(--danger)}
+    /* Grid */
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media(max-width:600px){.grid{grid-template-columns:1fr}}
+    /* Card */
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.5}
+    .card-title{font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-bottom:14px}
+    /* Big value */
+    .big{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:700;color:var(--accent);text-shadow:var(--glow);line-height:1}
+    .big.green{color:var(--green);text-shadow:var(--glow2)}
+    .sub{font-size:.7rem;color:var(--dim);margin-top:6px}
+    /* Door card */
+    .door-display{display:flex;align-items:center;gap:14px}
+    .door-icon{font-size:2.4rem}
+    /* Register section */
+    .register-card{grid-column:1/-1}
+    .setup{background:rgba(0,229,255,.04);border:1px dashed rgba(0,229,255,.2);border-radius:10px;padding:16px 18px;margin-top:4px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    .row:last-child{margin-bottom:0}
+    .row label{font-size:.75rem;color:var(--dim);min-width:70px}
+    .inp{font-family:'Share Tech Mono',monospace;font-size:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);width:160px;outline:none}
+    .inp:focus{border-color:var(--accent)}
+    .file-wrap{position:relative}
+    .file-wrap input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+    .file-btn{font-family:'Share Tech Mono',monospace;font-size:.72rem;padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);cursor:pointer;white-space:nowrap}
+    .btn-reg{font-family:'Orbitron',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.1em;padding:8px 16px;border-radius:8px;border:1px solid var(--green);color:var(--green);cursor:pointer;background:transparent;transition:all .2s}
+    .btn-reg:hover{background:rgba(0,255,136,.1);box-shadow:var(--glow2)}
+    .faces-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .face-tag{font-size:.7rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);color:var(--green);display:flex;align-items:center;gap:6px}
+    .face-tag button{background:none;border:none;color:var(--danger);cursor:pointer;font-size:.8rem;padding:0;line-height:1}
+    /* Access log */
+    .log-card{grid-column:1/-1}
+    .log-table{width:100%;border-collapse:collapse;font-size:.73rem;margin-top:4px}
+    .log-table th{text-align:left;padding:6px 10px;color:var(--dim);border-bottom:1px solid var(--border);font-weight:normal;letter-spacing:.1em;font-size:.65rem}
+    .log-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+    .log-table tr:last-child td{border-bottom:none}
+    .status-granted{color:var(--green)}
+    .status-denied{color:var(--danger)}
+    .no-log{color:var(--dim);font-size:.75rem;padding:10px 0}
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo">🚗 GARAGE <span>DASHBOARD</span></div>
+    <div class="header-right">
+      <input class="url-input" id="server-url" placeholder="https://your-app.railway.app" oninput="onUrlInput()"/>
+      <div class="badge off" id="api-badge">● API</div>
+      <div class="badge off" id="fb-badge">● Firebase</div>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- Current visitor -->
+    <div class="card">
+      <div class="card-title">// Current Visitor</div>
+      <div class="big green" id="visitor-name">NONE</div>
+      <div class="sub" id="visitor-time"></div>
+    </div>
+
+    <!-- Door status -->
+    <div class="card">
+      <div class="card-title">// Door Status</div>
+      <div class="door-display">
+        <div class="door-icon" id="door-icon">🔒</div>
+        <div>
+          <div class="big" id="door-label">CLOSED</div>
+          <div class="sub" id="door-sub">Waiting…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Register faces -->
+    <div class="card register-card">
+      <div class="card-title">// Register Authorized Users</div>
+      <div class="setup">
+        <div class="row">
+          <label>Name</label>
+          <input class="inp" id="face-name" type="text" placeholder="e.g. Mina"/>
+        </div>
+        <div class="row">
+          <label>Photo</label>
+          <div class="file-wrap">
+            <div class="file-btn" id="file-label">Choose image…</div>
+            <input type="file" id="face-photo" accept="image/*" onchange="onPhoto(this)"/>
+          </div>
+          <button class="btn-reg" onclick="registerFace()">+ REGISTER</button>
+        </div>
+        <div class="faces-list" id="faces-list">
+          <span style="font-size:.72rem;color:var(--dim)">No users registered yet.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access log -->
+    <div class="card log-card">
+      <div class="card-title">// Access Log</div>
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>TIME</th>
+            <th>NAME</th>
+            <th>STATUS</th>
+            <th>CONFIDENCE</th>
+          </tr>
+        </thead>
+        <tbody id="log-tbody">
+          <tr><td colspan="4" class="no-log">No entries yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Firebase ──────────────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey: "AIzaSyDdaewGhUk_r8yOG2EaRfaKs5FFdnRtn6w",
+  databaseURL: "https://garage-6749f-default-rtdb.firebaseio.com",
+  projectId: "garage-6749f",
+  appId: "1:28927968533:web:214234beca5652e243d51c"
+});
+const fireDb = firebase.database();
+
+fireDb.ref('.info/connected').on('value', snap => {
+  const el = document.getElementById('fb-badge');
+  el.textContent = '● Firebase';
+  el.className = snap.val() ? 'badge on' : 'badge off';
+});
+
+fireDb.ref('/garage/current_visitor').on('value', snap => {
+  const name = snap.val();
+  const empty = !name || name === 'Unknown' || name.toLowerCase() === 'none';
+  const el = document.getElementById('visitor-name');
+  el.textContent = empty ? 'NONE' : name.toUpperCase();
+  el.className = empty ? 'big' : 'big green';
+  document.getElementById('visitor-time').textContent =
+    !empty ? 'Last seen: ' + new Date().toLocaleTimeString() : '';
+});
+
+fireDb.ref('/garage/door_status').on('value', snap => {
+  const s = snap.val() || 'closed';
+  const icon  = document.getElementById('door-icon');
+  const label = document.getElementById('door-label');
+  const sub   = document.getElementById('door-sub');
+  if(s === 'open'){
+    icon.textContent = '🔓'; label.textContent = 'OPEN';
+    label.className = 'big green'; sub.textContent = 'Closing in 5s…';
+  } else {
+    icon.textContent = '🔒'; label.textContent = 'CLOSED';
+    label.className = 'big'; sub.textContent = 'Waiting for face…';
+  }
+});
+
+// Access log — live
+fireDb.ref('/garage/access_log').limitToLast(50).on('value', snap => {
+  const data = snap.val();
+  const tbody = document.getElementById('log-tbody');
+  if(!data){ tbody.innerHTML='<tr><td colspan="4" class="no-log">No entries yet.</td></tr>'; return; }
+  const entries = Object.values(data).reverse();
+  tbody.innerHTML = entries.map(e => `
+    <tr>
+      <td>${e.time||'—'}</td>
+      <td>${e.name||'Unknown'}</td>
+      <td class="status-${e.status||'denied'}">${(e.status||'denied').toUpperCase()}</td>
+      <td>${e.confidence !== undefined ? Math.round(e.confidence*100)+'%' : '—'}</td>
+    </tr>
+  `).join('');
+});
+
+// ── Server URL ────────────────────────────────────────────────────────
+const URL_KEY = 'garage_api_url';
+function getUrl(){ return document.getElementById('server-url').value.replace(/\/$/,'').trim(); }
+let pingTimer = null;
+function onUrlInput(){
+  const url = getUrl();
+  if(url) localStorage.setItem(URL_KEY, url);
+  clearTimeout(pingTimer); pingTimer = setTimeout(pingServer, 700);
+}
+async function pingServer(){
+  const url = getUrl(); if(!url) return;
+  try{
+    const r = await fetch(url+'/', {signal: AbortSignal.timeout(5000)});
+    const d = await r.json();
+    const el = document.getElementById('api-badge');
+    el.textContent = '● API'; el.className = 'badge on';
+    renderFaces(d.registered_faces || []);
+  } catch {
+    const el = document.getElementById('api-badge');
+    el.textContent = '● API'; el.className = 'badge off';
+  }
+}
+
+// ── Register face ─────────────────────────────────────────────────────
+function onPhoto(i){ document.getElementById('file-label').textContent = i.files[0]?.name || 'Choose image…'; }
+
+async function registerFace(){
+  const name  = document.getElementById('face-name').value.trim();
+  const input = document.getElementById('face-photo');
+  const url   = getUrl();
+  if(!name) return alert('Enter a name.');
+  if(!input.files[0]) return alert('Choose a photo.');
+  if(!url) return alert('Enter the Railway server URL.');
+  try{
+    const b64 = await toB64(input.files[0]);
+    const r = await fetch(url+'/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, image: b64})
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    alert(`✓ "${name}" registered!`);
+    document.getElementById('face-name').value = '';
+    input.value = ''; document.getElementById('file-label').textContent = 'Choose image…';
+    pingServer();
+  } catch(e){ alert('✗ '+e.message); }
+}
+
+async function deleteFace(name){
+  if(!confirm(`Remove "${name}"?`)) return;
+  try{
+    await fetch(getUrl()+'/faces/'+encodeURIComponent(name), {method:'DELETE'});
+    pingServer();
+  } catch(e){ alert('✗ '+e.message); }
+}
+
+function renderFaces(faces){
+  const el = document.getElementById('faces-list');
+  if(!faces.length){ el.innerHTML='<span style="font-size:.72rem;color:var(--dim)">No users registered yet.</span>'; return; }
+  el.innerHTML = faces.map(f=>`
+    <div class="face-tag">👤 ${f}
+      <button onclick="deleteFace('${f}')">✕</button>
+    </div>`).join('');
+}
+
+function toB64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=()=>rej(new Error('Read failed')); r.readAsDataURL(file); }); }
+
+// ── Init ──────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  const saved = localStorage.getItem(URL_KEY);
+  if(saved){ document.getElementById('server-url').value=saved; pingServer(); }
+});
+</script>
+</body>
+</html>
