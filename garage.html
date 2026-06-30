@@ -293,6 +293,7 @@ function stopCamera(){
   document.getElementById('gate-row').classList.remove('show');
   clearOverlay(); clearBanner();
   resetOpenAvailability();
+  clearTimeout(visitorClearTimer);
   log('Camera stopped');
 }
 
@@ -320,11 +321,16 @@ async function sendSnap(){
       drawBox(v, true, d.name);
       log('✓ '+d.name+' — DETECTED ('+Math.round(d.confidence*100)+'%)','ok');
       enableOpenButton(d.name);
+      // Write the matched visitor to Firebase so it shows on the current visitor card
+      fireDb.ref('/garage/current_visitor').set(d.name);
+      bumpVisitorClearTimer();
     } else if(d.faces_found > 0){
       showBanner('✗ UNKNOWN — NOT DETECTED','denied');
       drawBox(v, false, 'Unknown');
       document.getElementById('cam-wrap').classList.add('denied');
       log('✗ Unknown person — gate stays closed','err');
+      fireDb.ref('/garage/current_visitor').set('Unknown');
+      bumpVisitorClearTimer();
     } else {
       clearBanner(); clearOverlay();
       document.getElementById('cam-wrap').classList.remove('denied','granted');
@@ -374,6 +380,14 @@ function log(msg,type){
 }
 
 // ── Gate control ──────────────────────────────────────────────────────
+let visitorClearTimer = null;
+const VISITOR_CLEAR_MS = 10000; // clear current_visitor if no new detection within this window
+function bumpVisitorClearTimer(){
+  clearTimeout(visitorClearTimer);
+  visitorClearTimer = setTimeout(()=>{
+    fireDb.ref('/garage/current_visitor').set('None');
+  }, VISITOR_CLEAR_MS);
+}
 function enableOpenButton(name){
   lastMatchedName = name;
   const btn = document.getElementById('btn-open');
